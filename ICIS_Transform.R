@@ -41,7 +41,12 @@ data$Unit<-case_when(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total r
 
 
 ##need to convert farenheit tempt to celcius
-
+data$Result<-case_when(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, water deg. fahrenheit'~((data$Result-32)*0.5556),
+                       !(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, water deg. fahrenheit')~data$Result)
+data$Unit<-case_when(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, water deg. fahrenheit'~"deg C",
+                     !(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, water deg. fahrenheit')~data$Unit)
+data$Parameter.Desc<-case_when(data$Parameter.Desc=='Temperature, water deg. fahrenheit'~"Temperature, water deg. centigrade",
+                     !(data$Parameter.Desc=='Temperature, water deg. fahrenheit')~data$Parameter.Desc)
 
 ##################Summarizing Data#################################
 #create maximum values dataset
