@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("C:/COVID-19 WORK/ICIS_Work/DMRAlianaDataPull_ForestGrove.xlsx",skip=4,
+data<-read_excel("C:/COVID-19 WORK/ICIS_Work/DMRAlianaDataPull_KlamathFalls.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -33,6 +33,17 @@ prob<-subset(data,!(is.na(NODI.Descriptor)))
 #For results where Sampling.Frequency is NA, change to "Unknown"
 data$Sampling.Frequency<-ifelse(is.na(data$Sampling.Frequency),"Unknown",data$Sampling.Frequency)
 
+#convert mg/L to ug/L for Chlorine
+data$Result<-case_when(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual'~data$Result*1000,
+                       !(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual')~data$Result)
+data$Unit<-case_when(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual'~"ug/L",
+                     !(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual')~data$Unit)
+
+
+##need to convert farenheit tempt to celcius
+
+
+##################Summarizing Data#################################
 #create maximum values dataset
 maxs<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,max)
 #change column name to maximum
@@ -92,11 +103,6 @@ newmax$CV<-case_when(newmax$Sampling.Frequency=="Monthly"~newmax$CV,
                      !(newmax$Sampling.Frequency=="Monthly")~0.6)
 
 
-#convert mg/L to ug/L
-newmax$Maximum<-ifelse(newmax$Unit=="mg/L" & newmax$Parameter.Desc=='Chlorine, total residual',newmax$Maximum*1000,newmax$Maximum)
-newmax$Minimum<-ifelse(newmax$Unit=="mg/L" & newmax$Parameter.Desc=='Chlorine, total residual',newmax$Minimum*1000,newmax$Minimum)
-newmax$Unit<-ifelse(newmax$Unit=="mg/L" & newmax$Parameter.Desc=='Chlorine, total residual',"ug/L",newmax$Unit)
-newmax$avg<-ifelse(newmax$Unit=="mg/L" & newmax$Parameter.Desc=='Chlorine, total residual',"ug/L",newmax$avg)
 
 
 #table of summary of all parameters
@@ -197,7 +203,7 @@ ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maxim
                            "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
 
 #sort
-ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season),]
+ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description),]
 
 #create another table for ammonia, this one not seasonal
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
