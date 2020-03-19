@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//Deqhq1/abrits/R/DMRAlianaDataPull_ForestGrove.xlsx",skip=4,
+data<-read_excel("C:/COVID-19 WORK/ICIS_Work/DMRAlianaDataPull_ForestGrove.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -45,6 +45,21 @@ mins<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Descripti
 #change column name to maximum
 names(mins)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Minimum")
 newmax<-merge(newmax,mins,all=TRUE)
+
+#calculate 10th and 90th percentiles
+ninperc<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.90)
+
+#change column name to Ninety_Perc
+names(ninperc)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Ninety_Perc")
+
+tenp<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.10)
+
+#change column name to Ten_Perc
+names(tenp)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Ten_Perc")
+
+#merge into main ammonia table
+newmax<-merge(ninperc,newmax,all=TRUE)
+newmax<-merge(tenp,newmax,all=TRUE)
 
 #estimate # of samples taken
 #calculate # of observations per type
@@ -88,7 +103,7 @@ newmax$avg<-ifelse(newmax$Unit=="mg/L" & newmax$Parameter.Desc=='Chlorine, total
 sumdat<-subset(newmax,
                select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
-                        "Maximum","Minimum","avg","Unit","CV")
+                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV")
                )
 
 #create table for export to be used with RPA
@@ -99,9 +114,11 @@ rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"pH",
                                             'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
-                        "Maximum","Minimum","avg","Unit","CV")
+                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV")
                )
 
+
+#########################AMMONIA RPA WORK #######################################
 #for ammonia RPA, want seasonal information
 #add seasonal column, define summer as May-October and winter as Nov-April
 #use monitoring period end date to define the month
@@ -109,49 +126,57 @@ data$month<-month(data$Monitoring.Period.End.Date)
 
 data$season<-ifelse(data$month %in% c(5,6,7,8,9,10),"summer","winter")
 
-######
 #get data for ammonia RPA
 amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                        'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
-            & !(Location.Description %in% "Raw Sewage Influent"))
+            & (Location.Description %in% "Effluent Gross") & !(Unit %in% "lb/d"))
 
 #create maximum values dataset
 ammmaxs<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,max)
 #change column name to maximum
 names(ammmaxs)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Maximum")
 dist<-unique(subset(amm,select=c( "NPDES.ID", "Location.Description","Parameter.Desc", "Statistic.Description","Sampling.Frequency","Unit","season")))
-ammmax<-merge(dist,ammmaxs,all=TRUE)
+amstat<-merge(dist,ammmaxs,all=TRUE)
 
 #let's get minimums too
 ammins<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,min)
 #change column name to maximum
 names(ammins)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Minimum")
-ammmax<-merge(ammmax,ammins,all=TRUE)
-
+amstat<-merge(amstat,ammins,all=TRUE)
 
 
 #estimate # of samples taken
 #calculate # of observations per type
 ammobs<-amm %>% count(Parameter.Desc,Location.Description,Statistic.Description,Sampling.Frequency,Unit,season)
 #merge in with our max data table
-ammmax<-merge(ammobs,ammmax,all=TRUE)
+amstat<-merge(ammobs,amstat,all=TRUE)
 
-#for monthly, quarterly, and twice per year data calculate 10th and 90th percentiles
-
+#calculate 10th and 90th percentiles
 ninetyperc<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.90)
-  
+
+#change column name to Ninety_Perc
+names(ninetyperc)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Ninety_Perc")
+
 tenperc<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.10)
+
+#change column name to Ten_Perc
+names(tenperc)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Ten_Perc")
+
+#merge into main ammonia table
+amstat<-merge(ninetyperc,amstat,all=TRUE)
+amstat<-merge(tenperc,amstat,all=TRUE)
+
 
 #calculate estimated # of samples taken (if they were consistent)
 #since not every month has the exact same number of days, use the average number of days in a month (30.42). 
 #This won't account for leap years, but if they are sampling daily then they will have so many samples this shouldn't be much of an issue
-ammmax$est.samp<-case_when(ammmax$Sampling.Frequency=="Twice per Week"~8*ammmax$n,
-                           ammmax$Sampling.Frequency=="Daily" ~round(30.42*ammmax$n,0),
-                           ammmax$Sampling.Frequency=="Weekly" ~4*ammmax$n,
-                           ammmax$Sampling.Frequency=="Monthly"~ as.numeric(ammmax$n),
-                           ammmax$Sampling.Frequency=="Quarterly"~as.numeric(ammmax$n),
-                           ammmax$Sampling.Frequency=="Twice per Year"~as.numeric(ammmax$n),
-                           ammmax$Sampling.Frequency=="Three per Week"~12*ammmax$n)
+amstat$est.samp<-case_when(amstat$Sampling.Frequency=="Twice per Week"~8*amstat$n,
+                           amstat$Sampling.Frequency=="Daily" ~round(30.42*amstat$n,0),
+                           amstat$Sampling.Frequency=="Weekly" ~4*amstat$n,
+                           amstat$Sampling.Frequency=="Monthly"~ as.numeric(amstat$n),
+                           amstat$Sampling.Frequency=="Quarterly"~as.numeric(amstat$n),
+                           amstat$Sampling.Frequency=="Twice per Year"~as.numeric(amstat$n),
+                           amstat$Sampling.Frequency=="Three per Week"~12*amstat$n)
 
 #need to add coefficient of variation
 #for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
@@ -160,17 +185,16 @@ amsum<-amm %>%
   summarise(avg = mean(Result), stdev = sd(Result)) %>%
   mutate (CV = round(stdev/avg,2))
 
-ammmax<-merge(amsum,ammmax)
+amstat<-merge(amsum,amstat)
 
-ammmax$CV<-case_when(ammmax$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year")~ammmax$CV,
-                     !(ammmax$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
+amstat$CV<-case_when(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year")~amstat$CV,
+                     !(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
 
 #create table for ammonia RPA
-ammrp<-subset(ammmax,
+ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum"),
                   select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
                            "season","Sampling.Frequency","n","est.samp",
-                           "Maximum","Minimum","avg","Unit","CV")
-)
+                           "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
 
 #sort
 ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season),]
@@ -178,11 +202,12 @@ ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season),]
 #create another table for ammonia, this one not seasonal
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                             'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
-               & !(Location.Description %in% "Raw Sewage Influent"),
+               & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum")
+               & !(Unit %in% 'lb/d')
+               & Location.Description %in% 'Effluent Gross',
                select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
                                "Sampling.Frequency","n","est.samp",
-                               "Maximum","avg","Unit","CV")
-)
+                               "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
 
 
 ##########################################EXCEL EXPORT###########################
@@ -204,9 +229,9 @@ writeData(wb,sheet="Ammonia RPA",startRow=1,x="Summary statistics for Ammonia RP
 writeData(wb,sheet="Ammonia RPA",startRow=2,x="winter=November - April, summer= May - October")
 writeData(wb,sheet="Ammonia RPA",startRow=3, x="avg is calculated using n, not est.samp")
 writeData(wb,sheet="Ammonia RPA",x="Seasonal",startCol=1, startRow=5)
-writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=15,startRow=5)
+writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=17,startRow=5)
 writeData(wb,sheet="Ammonia RPA",x=ammrp,startCol=1, startRow=6)
-writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=15,startRow=6)
+writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=17,startRow=6)
 
 #sheet of all summary 
 addWorksheet(wb,"Parameter Summary")
@@ -219,7 +244,7 @@ writeData(wb,sheet="ICIS Data",startRow=1,x="Data from ICIS")
 writeData(wb,sheet="ICIS Data",startRow=1,x="Note that any data where the result was not reported has been removed")
 writeData(wb,sheet="ICIS Data",startRow=5,x=data)
 
-saveWorkbook(wb,"//Deqhq1/abrits/R/ICIS_RPAPrep.xlsx",overwrite=TRUE)
+saveWorkbook(wb,"C:/COVID-19 WORK/ICIS_Work/ICIS_RPAPrep.xlsx",overwrite=TRUE)
 
 
 
