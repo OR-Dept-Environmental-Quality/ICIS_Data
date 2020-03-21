@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("C:/COVID-19 WORK/ICIS_Work/DMRAlianaDataPull_KlamathFalls.xlsx",skip=4,
+data<-read_excel("C:/COVID-19 WORK/ICIS_Work/DMRAlianaDataPull_TillamookCreamery.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -32,6 +32,9 @@ prob<-subset(data,!(is.na(NODI.Descriptor)))
 
 #For results where Sampling.Frequency is NA, change to "Unknown"
 data$Sampling.Frequency<-ifelse(is.na(data$Sampling.Frequency),"Unknown",data$Sampling.Frequency)
+
+#save a copy of the data sheet for the excel output before we make too many more data transformations
+data1<-data
 
 #convert mg/L to ug/L for Chlorine
 data$Result<-case_when(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual'~data$Result*1000,
@@ -230,7 +233,7 @@ wb<-createWorkbook()
 #sheet of Chlorine and pH RPA-relevant info
 addWorksheet(wb,"pH and Chlorine RPA")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=1, x="Summary statistics for pH and Chlorine RPA analysis")
-writeData(wb,sheet="pH and Chlorine RPA",startRow=2, x="CV only calculated for monthly data, otherwise a CV of 0.6 is assumed")
+writeData(wb,sheet="pH and Chlorine RPA",startRow=2, x="CV only calculated for data with a monthly or less monitoring frequency, otherwise a CV of 0.6 is assumed")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=3, x="avg is calculated using n, not est.samp")
 writeData(wb,sheet="pH and Chlorine RPA",x=rpabasics,startCol=1, startRow=5)
 
@@ -246,14 +249,15 @@ writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=17,startRow=6)
 
 #sheet of all summary 
 addWorksheet(wb,"Parameter Summary")
-writeData(wb,sheet="Parameter Summary",startRow=1,x="Summary of all DMR parameters")
+writeData(wb,sheet="Parameter Summary",startRow=1,x="Summary of all reported DMR parameters")
 writeData(wb,sheet="Parameter Summary",startRow=3,x=sumdat)
 
 #sheet of original data
 addWorksheet(wb,"ICIS Data")
 writeData(wb,sheet="ICIS Data",startRow=1,x="Data from ICIS")
-writeData(wb,sheet="ICIS Data",startRow=1,x="Note that any data where the result was not reported has been removed")
-writeData(wb,sheet="ICIS Data",startRow=5,x=data)
+writeData(wb,sheet="ICIS Data",startRow=2,x="Note that any data where the result was not reported has been removed")
+writeData(wb,sheet="ICIS Data",startRow=3,x="This data has not had any unit transformations done")
+writeData(wb,sheet="ICIS Data",startRow=5,x=data1)
 
 saveWorkbook(wb,"C:/COVID-19 WORK/ICIS_Work/ICIS_RPAPrep.xlsx",overwrite=TRUE)
 
