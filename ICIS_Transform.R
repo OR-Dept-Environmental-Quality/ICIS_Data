@@ -76,7 +76,7 @@ tenp<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Descripti
 #change column name to Ten_Perc
 names(tenp)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Ten_Perc")
 
-#merge into main ammonia table
+#merge into main table
 newmax<-merge(ninperc,newmax,all=TRUE)
 newmax<-merge(tenp,newmax,all=TRUE)
 
