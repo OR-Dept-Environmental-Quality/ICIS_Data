@@ -7,6 +7,7 @@ library(tidyverse)
 library(dplyr)
 library(openxlsx)
 library(lubridate)
+library(ggplot2)
 
 #attempt to turn off scientific notation
 options(scipen=999)
@@ -151,8 +152,87 @@ main<-merge(main,Sum_CV)
 #remove avg and stdev col
 main<-subset(main,select=-c(SumData_Average,SumData_StandardDev))
 
+#there are some NaN cases because all the data was only reported in one month
 main$SumData_CV<-case_when(main$SumData_Count<=60~main$SumData_CV,
                            main$SumData_Count>60~0.6)
 
+######################Have both datasets compiled in main##############
 
+#figure out percent differences
+###if average is the RPA statistics the corresponding summary stat is average of the average
+
+RPAAvg<-subset(main,
+               select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, RawData_Average,
+                        SumData_Average_of_Average))
+
+RPAAvg$percdiff<-(abs(RPAAvg$RawData_Average-RPAAvg$SumData_Average_of_Average)/((RPAAvg$RawData_Average+RPAAvg$SumData_Average_of_Average)/2))*100
+
+
+#plot data 
+ggplot(data=RPAAvg,mapping= aes(y=percdiff, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+###if maximum is the RPA statistic we are interested in
+RPAMax<-subset(main,
+               select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, 
+                        RawData_Maximum,SumData_Maximum_of_Maximum, SumData_Maximum_Average,
+                        SumData_Maximum_Weekly_Average))
+
+#compare with maximum of maximum
+RPAMax$percdiffmaxmax<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_of_Maximum)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_of_Maximum)/2))*100
+
+ggplot(data=RPAMax,mapping= aes(y=percdiffmaxmax, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+#compare with maximum of maximum weekly average
+RPAMax$percdiffmaxwkavg<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_Weekly_Average)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_Weekly_Average)/2))*100
+
+ggplot(data=RPAMax,mapping= aes(y=percdiffmaxwkavg, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+#compare with maximum of the average
+RPAMax$percdiffmaxavg<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_Average)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_Average)/2))*100  
   
+ggplot(data=RPAMax,mapping= aes(y=percdiffmaxavg, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+#####10th percentile RPA statistic
+RPATen<-subset(main,
+              select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, 
+                       RawData_TenPercentile, SumData_AvgMinimum,SumData_Minimum_Average))
+
+#compare with the average of the minimum
+RPATen$percdiffavgmin<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_AvgMinimum)/((RPATen$RawData_TenPercentile+RPATen$SumData_AvgMinimum)/2))*100  
+
+ggplot(data=RPATen,mapping= aes(y=percdiffavgmin, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+#compare with the minimum of the average
+RPATen$percdiffminavg<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_Minimum_Average)/((RPATen$RawData_TenPercentile+RPATen$SumData_Minimum_Average)/2))*100  
+
+ggplot(data=RPATen,mapping= aes(y=percdiffminavg, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+
+###90th percentile summary statistic
+RPA90<-subset(main,
+              select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, 
+                       RawData_Ninety_Percentile,SumData_AvgMaximum,SumData_Maximum_Average,SumData_Maximum_Weekly_Average))
+
+#compare with average of the maximum
+RPA90$percdiffavgmax<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_AvgMaximum)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_AvgMaximum)/2))*100  
+
+ggplot(data=RPA90,mapping= aes(y=percdiffavgmax, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+#compare with maximum of the average
+RPA90$percdiffmaxavg<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_Maximum_Average)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_Maximum_Average)/2))*100  
+
+ggplot(data=RPA90,mapping= aes(y=percdiffmaxavg, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
+
+#compare with maximum of the weekly average
+RPA90$percdiffmaxwkavg<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_Maximum_Weekly_Average)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_Maximum_Weekly_Average)/2))*100  
+
+ggplot(data=RPA90,mapping= aes(y=percdiffmaxwkavg, x=RawData_Count,shape=ParameterDesc))+
+  geom_point()
