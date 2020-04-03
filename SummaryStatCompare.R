@@ -22,6 +22,12 @@ data$ObservQty<-case_when(data$UnitAbbr=="°F" & data$ParameterDesc=='Temperatur
 data$UnitAbbr<-case_when(data$UnitAbbr=="°F" & data$ParameterDesc=='Temperature'~"°C",
                      !(data$UnitAbbr=="°F" & data$ParameterDesc=='Temperature')~data$UnitAbbr)
 
+#some temp data looks really wrong- remove anything higher than 100 or less than 0 for deg C
+data<-subset(data,!(ParameterDesc=="Temperature" & (ObservQty>100|ObservQty<0)))
+
+#some pH also looks really wrong-remove anything higher than 14 or less than 4
+data<-subset(data,!(ParameterDesc=="pH" & (ObservQty>14|ObservQty<4)))
+
 #remove lbs/day data- not needed
 data<-subset(data, !(UnitAbbr=='lbs/day'))
 
@@ -137,6 +143,11 @@ SumStatAvgAvg<-aggregate(Average~ParameterDesc + PermitNo + MonPtCat + MonPtCatQ
 names(SumStatAvgAvg)<-c("ParameterDesc", "PermitNo","MonPtCat", "MonPtCatQual","UnitAbbr","SumData_Average_of_Average")
 main<-merge(main,SumStatAvgAvg,all=TRUE)
 
+#minimum of minimum (in case the other 10th percentile stats don't work)
+SumStatminmin<-aggregate(Minimum~ParameterDesc + PermitNo + MonPtCat + MonPtCatQual + UnitAbbr,summarydata,min)
+names(SumStatminmin)<-c("ParameterDesc", "PermitNo","MonPtCat", "MonPtCatQual","UnitAbbr","SumData_Minimum_of_Minimum")
+main<-merge(main,SumStatminmin,all=TRUE)
+
 #total count
 SumStatCount<-aggregate(n~ParameterDesc + PermitNo + MonPtCat + MonPtCatQual + UnitAbbr,summarydata,sum)
 names(SumStatCount)<-c("ParameterDesc", "PermitNo","MonPtCat", "MonPtCatQual","UnitAbbr","SumData_Count")
@@ -165,11 +176,11 @@ RPAAvg<-subset(main,
                select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, RawData_Average,
                         SumData_Average_of_Average))
 
-RPAAvg$percdiff<-(abs(RPAAvg$RawData_Average-RPAAvg$SumData_Average_of_Average)/((RPAAvg$RawData_Average+RPAAvg$SumData_Average_of_Average)/2))*100
+RPAAvg$avg_percdiff<-(abs(RPAAvg$RawData_Average-RPAAvg$SumData_Average_of_Average)/((RPAAvg$RawData_Average+RPAAvg$SumData_Average_of_Average)/2))*100
 
 
 #plot data 
-ggplot(data=RPAAvg,mapping= aes(y=percdiff, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPAAvg,mapping= aes(y=avg_percdiff, x=RawData_Count,shape=ParameterDesc))+
   geom_point()
 
 ###if maximum is the RPA statistic we are interested in
@@ -179,60 +190,114 @@ RPAMax<-subset(main,
                         SumData_Maximum_Weekly_Average))
 
 #compare with maximum of maximum
-RPAMax$percdiffmaxmax<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_of_Maximum)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_of_Maximum)/2))*100
+RPAMax$max_percdiffmaxmax<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_of_Maximum)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_of_Maximum)/2))*100
 
-ggplot(data=RPAMax,mapping= aes(y=percdiffmaxmax, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPAMax,mapping= aes(y=max_percdiffmaxmax, x=RawData_Count,shape=ParameterDesc))+
   geom_point()
 
 #compare with maximum of maximum weekly average
-RPAMax$percdiffmaxwkavg<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_Weekly_Average)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_Weekly_Average)/2))*100
+RPAMax$max_percdiffmaxwkavg<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_Weekly_Average)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_Weekly_Average)/2))*100
 
-ggplot(data=RPAMax,mapping= aes(y=percdiffmaxwkavg, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPAMax,mapping= aes(y=max_percdiffmaxwkavg, x=RawData_Count,shape=ParameterDesc))+
   geom_point()
 
 #compare with maximum of the average
-RPAMax$percdiffmaxavg<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_Average)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_Average)/2))*100  
+RPAMax$max_percdiffmaxavg<-(abs(RPAMax$RawData_Maximum-RPAMax$SumData_Maximum_Average)/((RPAMax$RawData_Maximum+RPAMax$SumData_Maximum_Average)/2))*100  
   
-ggplot(data=RPAMax,mapping= aes(y=percdiffmaxavg, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPAMax,mapping= aes(y=max_percdiffmaxavg, x=RawData_Count,shape=ParameterDesc))+
   geom_point()
 
 #####10th percentile RPA statistic
 RPATen<-subset(main,
               select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, 
-                       RawData_TenPercentile, SumData_AvgMinimum,SumData_Minimum_Average))
+                       RawData_TenPercentile, SumData_AvgMinimum,SumData_Minimum_Average,SumData_Minimum_of_Minimum))
 
 #compare with the average of the minimum
-RPATen$percdiffavgmin<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_AvgMinimum)/((RPATen$RawData_TenPercentile+RPATen$SumData_AvgMinimum)/2))*100  
+RPATen$ten_percdiffavgmin<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_AvgMinimum)/((RPATen$RawData_TenPercentile+RPATen$SumData_AvgMinimum)/2))*100  
 
-ggplot(data=RPATen,mapping= aes(y=percdiffavgmin, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPATen,mapping= aes(y=ten_percdiffavgmin, x=RawData_Count,shape=ParameterDesc,color=ParameterDesc))+
   geom_point()
 
 #compare with the minimum of the average
-RPATen$percdiffminavg<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_Minimum_Average)/((RPATen$RawData_TenPercentile+RPATen$SumData_Minimum_Average)/2))*100  
+RPATen$ten_percdiffminavg<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_Minimum_Average)/((RPATen$RawData_TenPercentile+RPATen$SumData_Minimum_Average)/2))*100  
 
-ggplot(data=RPATen,mapping= aes(y=percdiffminavg, x=RawData_Count,shape=ParameterDesc))+
+#one NaN due to 0/0- there was no difference so change the NaN to 0
+RPATen$ten_percdiffminavg<-ifelse(is.na(RPATen$ten_percdiffminavg),0,RPATen$ten_percdiffminavg)
+
+ggplot(data=RPATen,mapping= aes(y=ten_percdiffminavg, x=RawData_Count,shape=ParameterDesc,color=ParameterDesc))+
   geom_point()
 
+#compare with minimum of minimum
+RPATen$ten_percdiffminmin<-(abs(RPATen$RawData_TenPercentile-RPATen$SumData_Minimum_of_Minimum)/((RPATen$RawData_TenPercentile+RPATen$SumData_Minimum_of_Minimum)/2))*100  
+
+#two NaN due to 0/0- there was no difference so change the NaN to 0
+RPATen$ten_percdiffminmin<-ifelse(is.na(RPATen$ten_percdiffminmin),0,RPATen$ten_percdiffminmin)
+
+ggplot(data=RPATen,mapping= aes(y=ten_percdiffminmin, x=RawData_Count,shape=ParameterDesc,color=ParameterDesc))+
+  geom_point()
 
 ###90th percentile summary statistic
-RPA90<-subset(main,
+RPA90<-subset(main, 
               select=c(ParameterDesc,PermitNo,MonPtCat,MonPtCatQual,UnitAbbr,RawData_Count,RawData_CV, 
                        RawData_Ninety_Percentile,SumData_AvgMaximum,SumData_Maximum_Average,SumData_Maximum_Weekly_Average))
 
 #compare with average of the maximum
-RPA90$percdiffavgmax<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_AvgMaximum)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_AvgMaximum)/2))*100  
+RPA90$percdiff90avgmax<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_AvgMaximum)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_AvgMaximum)/2))*100  
 
-ggplot(data=RPA90,mapping= aes(y=percdiffavgmax, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPA90,mapping= aes(y=percdiff90avgmax, x=RawData_Count,shape=ParameterDesc,color=ParameterDesc))+
   geom_point()
 
 #compare with maximum of the average
-RPA90$percdiffmaxavg<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_Maximum_Average)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_Maximum_Average)/2))*100  
+RPA90$percdiff90maxavg<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_Maximum_Average)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_Maximum_Average)/2))*100  
 
-ggplot(data=RPA90,mapping= aes(y=percdiffmaxavg, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPA90,mapping= aes(y=percdiff90maxavg, x=RawData_Count,shape=ParameterDesc,color=ParameterDesc))+
   geom_point()
 
 #compare with maximum of the weekly average
-RPA90$percdiffmaxwkavg<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_Maximum_Weekly_Average)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_Maximum_Weekly_Average)/2))*100  
+RPA90$percdiff90maxwkavg<-(abs(RPA90$RawData_Ninety_Percentile-RPA90$SumData_Maximum_Weekly_Average)/((RPA90$RawData_Ninety_Percentile+RPA90$SumData_Maximum_Weekly_Average)/2))*100  
 
-ggplot(data=RPA90,mapping= aes(y=percdiffmaxwkavg, x=RawData_Count,shape=ParameterDesc))+
+ggplot(data=RPA90,mapping= aes(y=percdiff90maxwkavg, x=RawData_Count,shape=ParameterDesc,color=ParameterDesc))+
   geom_point()
+
+######have graphs, but want to see what how much is within 10%
+#merge all the RPAstat tables together
+RPA<-merge(RPAAvg,RPAMax,all=TRUE)
+RPA<-merge(RPA,RPA90,all=TRUE)
+RPA<-merge(RPA,RPATen,all=TRUE)
+
+#just get the important columns
+RPA<-subset(RPA,select=c("ParameterDesc","avg_percdiff","max_percdiffmaxmax","max_percdiffmaxwkavg",
+                         "max_percdiffmaxavg","percdiff90avgmax","percdiff90maxavg","percdiff90maxwkavg",
+                         "ten_percdiffavgmin","ten_percdiffminavg","ten_percdiffminmin"))
+
+#convert to longtable format to make it easier to use
+RPA1<-gather(RPA,Statistic,percent_diff,avg_percdiff:ten_percdiffminmin)
+
+
+counts<-RPA1 %>%
+  group_by(ParameterDesc,Statistic)%>%
+  summarise(Below10perc=sum(ifelse(percent_diff<=10,1,0)),
+            Above10perc=sum(ifelse(percent_diff>10,1,0)), 
+            total=Above10perc+Below10perc) %>%
+  mutate (percent_below10perc=(Below10perc/total)*100)
+
+############################Let's see how this affects actual ammonia RPA#################
+
+#get permittees with full data set
+fullset<-main %>%
+  group_by(PermitNo) %>%
+  mutate(complete = ifelse(sum(ifelse(!is.na(PermitNo),1,0))==4, "Yes", "No"))
+
+fullset<-subset(fullset,complete=="Yes")
+#only 5 permittees have full data set. Just plug numbers into RPA sheet instead of trying to recreate RPA in R
+  
+#time to export to excel
+wb<-createWorkbook()
+addWorksheet(wb,"Percent_Differences")
+writeData(wb,sheet="Percent_Differences",x=counts)
+addWorksheet(wb,"Raw_vs_Summary")
+writeData(wb,sheet="Raw_vs_Summary",x=main)
+addWorksheet(wb,"CompleteDataset")
+writeData(wb,sheet="CompleteDataset",x=fullset)
+
+saveWorkbook(wb,"C:/COVID-19 WORK/ICIS_Work/SummaryStatCompare.xlsx",overwrite=TRUE)
