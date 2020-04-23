@@ -2,6 +2,8 @@
 
 library(readxl)
 library(tidyverse)
+library(stringr)
+library(openxlsx)
 
 
 #import data
@@ -82,7 +84,7 @@ permittee<-read_excel("C:/COVID-19 WORK/Gap_Analysis_Work/5yrNPDESIssuancePlan.x
 names(permittee)<-str_replace_all(names(permittee), c(" " = "." , "," = "" ))
 
 #get just a list of permittees to merge sufficiency info into
-suffice<-subset(permittee,select=c("EPA.Number","Common.Name","Type","Major/Minor","Flow.Criteria"))
+suffice<-subset(permittee,select=c("EPA.Number","Common.Name","Permit.Type","Expiration.Date","Type","Major/Minor","Flow.Criteria"))
 
 #determine presence of any data in ICIS
 suffice$ICIS_Data<-ifelse(suffice$EPA.Number %in% sumicis$NPDES.ID,"Yes","No Data in ICIS")
@@ -142,23 +144,67 @@ amm$alkenough<-ifelse(amm$Parameter.Desc=="Alkalinity, total [as CaCO3]",ifelse(
 amm$ammenough<-ifelse(amm$Parameter.Desc=="Nitrogen, ammonia total [as N]",ifelse(amm$est.samp>=4,"Ammonia Sufficient","Ammonia Insufficient"),NA)
 
 
-####code doesn't work after here#################################
-ammRPA<-amm %>%
-  subset(select=c(NPDES.ID,Location.Description, pHenough,tempenough, alkenough, ammenough)) %>%
-  group_by(NPDES.ID,Location.Description) %>%
-  summarise(pH=paste(unique(pHenough)),temp=paste(unique(tempenough)),alk=paste(unique(alkenough)),amm=paste(unique(ammenough)))
-
-  paste(ifelse(is.na(amm$pHenough),"No pH Data",amm$pHenough),", ",
-               ifelse(is.na(amm$tempenough),"No Temperature Data",amm$tempenough),", ",
-               ifelse(is.na(amm$alkenough),"No Alkalinity Data",amm$alkenough), ", ",
-               ifelse(is.na(amm$ammenough),"No Ammonia Data",amm$ammenough))
-
 #have whether each parameter is enough, now need to determine if all are there and sufficient
 #make a column for each in suffice
+#since match takes the first matching value, need to make sure the dataset 
+#is in proper order for each parameter so that NAs are last
+
+amm<-amm[order(amm$pHenough),]
 suffice$pH<-amm$pHenough[match(suffice$EPA.Number,amm$NPDES.ID)]
+
+amm<-amm[order(amm$tempenough),]
 suffice$temperature<-amm$tempenough[match(suffice$EPA.Number,amm$NPDES.ID)]
-suffice$ammonia<-amm$alkenough[match(suffice$EPA.Number,amm$NPDES.ID)]
-suffice$alkalinity<-amm$ammenough[match(suffice$EPA.Number,amm$NPDES.ID)]
+
+amm<-amm[order(amm$alkenough),]
+suffice$alkalinity<-amm$alkenough[match(suffice$EPA.Number,amm$NPDES.ID)]
+
+amm<-amm[order(amm$ammenough),]
+suffice$ammonia<-amm$ammenough[match(suffice$EPA.Number,amm$NPDES.ID)]
+
+#let's fill in the gaps
+suffice$AmmRPA<-case_when(suffice$Flow.Criteria=="<0.1 mgd flow"~"Flow <0.1 MGD, no Ammonia RPA needed",
+                          suffice$Type=="Irrigation"~"Irrigation, Ammonia RPA not necessary",
+                         is.na(suffice$pH) & is.na(suffice$temperature) & is.na(suffice$alkalinity) & is.na(suffice$ammonia)~"No Data, Ammonia RPA likely needed",
+                         is.na(suffice$pH)|is.na(suffice$temperature)|is.na(suffice$alkalinity)|is.na(suffice$ammonia)~"Some parameters missing, Ammonia RPA likely needed",
+                         (!is.na(suffice$pH) & !is.na(suffice$temperature) & !is.na(suffice$alkalinity) & !is.na(suffice$ammonia)) &
+                           (str_detect(suffice$pH,"Ins")|str_detect(suffice$temperature,"Ins")|str_detect(suffice$alkalinity,"Ins")|str_detect(suffice$ammonia,"Ins"))~"All parameters present, but some insufficient",
+                         (!is.na(suffice$pH) & !is.na(suffice$temperature) & !is.na(suffice$alkalinity) & !is.na(suffice$ammonia)) &
+                           !(str_detect(suffice$pH,"Ins")|str_detect(suffice$temperature,"Ins")|str_detect(suffice$alkalinity,"Ins")|str_detect(suffice$ammonia,"Ins"))~"All parameters present, data sufficient"
+                         )
+
+suffice$pHRPA<-case_when(suffice$Type=="Irrigation"~"Irrigation, pH RPA not necessary",
+                         is.na(suffice$alkalinity)& is.na(suffice$temperature)~"No Data, pH RPA likely needed",
+                         is.na(suffice$alkalinity)|is.na(suffice$temperature)~"Some parameters missing, pH RPA likely needed",
+                         (!is.na(suffice$alkalinity)& !is.na(suffice$temperature)) & (str_detect(suffice$temperature,"Ins")|str_detect(suffice$alkalinity,"Ins"))~"All parameters present, but some insufficient",
+                         (!is.na(suffice$alkalinity)& !is.na(suffice$temperature)) & !(str_detect(suffice$temperature,"Ins")|str_detect(suffice$alkalinity,"Ins"))~"All parameters present, data sufficient"
+                         )
+
+#let's get a table of the random one-off parameters that might be useful for a toxics pull
+grabbag<-subset(sumicis,(Parameter.Desc %in% c("Copper, total [as Cu]", "Lead, total [as Pb]", "Zinc, total [as Zn]",                   
+                                               "Nitrite + Nitrate total [as N]", "Phosphate, ortho, dissolved [as P]",    
+                                               "Phosphate, total [as PO4]", "Phosphorus, total [as P]",           
+                                               "Mercury, dissolved [as Hg]","Mercury, total [as Hg]","Methylmercury",                        
+                                               "Sulfur dioxide, total", "Formaldehyde", "Chromium, total [as Cr]", "Fluoride, total [as F]",               
+                                               "Total toxic organics [TTO] [40 CFR469]", "BTEX",                                  
+                                               "Bromine, reported as the element","2-Chlorophenol","4,4'-DDD","4,4'-DDE","4,4'-DDT",                              
+                                               "Cadmium, total recoverable","Chloride [as Cl]","Chlorobenzene","Chromium, hexavalent [as Cr]",         
+                                               "Iron, total recoverable", "Perchlorate [ClO4]","Tetrachloroethylene")))
+
+#get list of permittees to merge potential toxics into
+pottox<-subset(permittee,select=c("EPA.Number","Common.Name","Permit.Type","Expiration.Date","Type","Major/Minor","Flow.Criteria"))
+
+pottox<-merge(pottox,grabbag,by.y="NPDES.ID",by.x="EPA.Number",all=FALSE)
+
+
+#get table of potential ambient data
+recwat<-subset(sumicis,!(Location.Description %in% c("Effluent Gross","Internal Monitoring Point")))
+
+#merge into list of permittees
+permamb<-subset(permittee,select=c("EPA.Number","Common.Name","Permit.Type","Expiration.Date","Type","Major/Minor","Flow.Criteria"))
+
+permamb<-merge(permamb,recwat,by.y="NPDES.ID",by.x="EPA.Number",all=FALSE)
+
+#lets get an excel exported
 
 
 
