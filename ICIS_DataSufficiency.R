@@ -78,10 +78,13 @@ sumicis<-aggregate(est.samp~NPDES.ID+Location.Description+Parameter.Desc+Statist
 #go through by RPA type to see if data is sufficient
 
 #to do that we need to bring in permittee information
-permittee<-read_excel("C:/COVID-19 WORK/Gap_Analysis_Work/5yrNPDESIssuancePlan.xlsx",sheet="PermitteeInfo_R")
-#convert names so that they are usable
+permittee<-read_excel("C:/COVID-19 WORK/Gap_Analysis_Work/5yrNPDESIssuancePlan.xlsx",sheet="PermitteeInfo_R",
+                      col_types = c("text","text","text","text","text","text","date","text","text","text",
+                                    "text","text","text","text","text","text","text","text","text"))
 
+#convert names so that they are usable
 names(permittee)<-str_replace_all(names(permittee), c(" " = "." , "," = "" ))
+
 
 #get just a list of permittees to merge sufficiency info into
 suffice<-subset(permittee,select=c("EPA.Number","Common.Name","Permit.Type","Expiration.Date","Type","Major/Minor","Flow.Criteria"))
@@ -204,7 +207,59 @@ permamb<-subset(permittee,select=c("EPA.Number","Common.Name","Permit.Type","Exp
 
 permamb<-merge(permamb,recwat,by.y="NPDES.ID",by.x="EPA.Number",all=FALSE)
 
-#lets get an excel exported
+##########################################lets get an excel exported
+wb<-createWorkbook()
 
+#create some styles
+header<-createStyle(fontSize = 12,textDecoration = "bold")
+wrap<-createStyle(wrapText=TRUE)
+
+
+#order sufficiency data by permit type, then by expiration date
+suffice<-suffice[order(suffice$Permit.Type,suffice$Expiration.Date),]
+suffice<-subset(suffice, select=c("EPA.Number", "Common.Name", "Permit.Type" ,"Expiration.Date","Type" , "Major/Minor",    
+                                  "Flow.Criteria", "ICIS_Data","ChlorRPA","AmmRPA","pHRPA","pH","temperature","alkalinity",     
+                                  "ammonia"))
+names(suffice)<-c("EPA Number","Common Name","Permit Type","Expiration Date","Type","Major/Minor","Design Flow",
+                  "Data Present in ICIS","Chlorine RPA Data Status","Ammonia RPA Data Status","pH RPA Data status",
+                  "pH Data","Temperature Data","Alkalinity Data","Ammonia Data")
+
+#want sheets for sufficiency data, potential toxics, and potential ambient data
+addWorksheet(wb,"Gap_Analysis")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=1,x="RPA information in ICIS")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=2,x="Note that code likely underestimated the amount of data when the parameter was present due the lack of sampling frequency reported for some analytes")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=3,x="Therefore, any claim of 'insuffient data' will need to be verified with an actual data pull")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=4,x="Ammonia RPA Status examined sufficiency of temperature, ammonia, pH, and alkalinity data")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=5,x="pH RPA Status examined sufficiency of temperature and alkalinity data")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=6,x="Irrigation permits added just to see if any data could be found in ICIS, not part of 2021 permit issuance plan")
+writeData(wb,"Gap_Analysis",startCol=1,startRow=8,x=suffice,keepNA=TRUE,na.string="No Data")
+addStyle(wb,"Gap_Analysis",rows=1:8, cols = 1:20, style = header, gridExpand= T)
+addStyle(wb,"Gap_Analysis",rows=9:100,cols = 1:20,style= wrap, gridExpand = T)
+setColWidths(wb,"Gap_Analysis",widths=15, cols=1:20)
+
+pottox<-pottox[order(pottox$Permit.Type),]
+names(pottox)<-c("EPA Number","Common Name","Permit Type","Expiration Date","Type","Major/Minor","Design Flow","Location Description",
+                 "Parameter","Statistic","Estimated Number of Samples")
+
+addWorksheet(wb,"Toxics_Data")
+writeData(wb,"Toxics_Data",startCol=1,startRow=1,x="Data that could be used for Toxics RPA")
+writeData(wb,"Toxics_Data",startCol=1,startRow=4,x=pottox)
+addStyle(wb,"Toxics_Data",rows=1:4, cols = 1:20, style = header, gridExpand= T)
+addStyle(wb,"Toxics_Data",rows=5:100,cols = 1:20, gridExpand=T,style= wrap)
+setColWidths(wb,"Toxics_Data",widths=15, cols=1:20)
+
+
+permamb<-permamb[order(permamb$Permit.Type),]
+names(permamb)<-c("EPA Number","Common Name","Permit Type","Expiration Date","Type","Major/Minor","Design Flow","Location Description",
+                  "Parameter","Statistic","Estimated Number of Samples")
+
+addWorksheet(wb,"Potential_Ambient")
+writeData(wb,"Potential_Ambient",startCol=1,startRow=1,x="Potential ambient data reported in ICIS, note that the locations and usability will need to be further verified before use")
+writeData(wb,"Potential_Ambient",startCol=1,startRow = 4, x=permamb)
+addStyle(wb,"Potential_Ambient",rows=1:4, cols = 1:20, style = header, gridExpand=T)
+addStyle(wb,"Potential_Ambient",rows=5:100,cols = 1:20,gridExpand=T, style= wrap)
+setColWidths(wb,"Potential_Ambient",widths=15, cols=1:20)
+
+saveWorkbook(wb,"C:/COVID-19 WORK/Gap_Analysis_Work/Gap_Analysis_Results.xlsx",overwrite=TRUE)
 
 
