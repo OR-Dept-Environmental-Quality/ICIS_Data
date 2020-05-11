@@ -12,8 +12,8 @@ library(ggplot2)
 #attempt to turn off scientific notation
 options(scipen=999)
 
-#get data from Forest Grove, Canby, Seaside, and Troutdale from 1/1/2012-1/1/2017
 
+#data from DMS server from last 5 years
 data<-read_excel("C:/COVID-19 WORK/ICIS_Work/RPA_Data_Test/All_DMS_2012-2017_AmmoniaRPA.xlsx")
 
 #convert deg F to deg C
@@ -284,3 +284,33 @@ addWorksheet(wb,"CV Data")
 writeData(wb,sheet="CV Data",x=cvs)
 
 saveWorkbook(wb,"C:/COVID-19 WORK/ICIS_Work/RPA_Data_Test/SummaryStatCompare.xlsx",overwrite=TRUE)
+
+
+####### Calculate Alkalinity defaults from DMS data
+alk<-subset(data,data$ParameterDesc=="Alkalinity as Calcium Carbonate")
+
+#check permit ids, make sure all are domestic (no industrials)
+wqsis<-read.csv("C:/COVID-19 WORK/Gap_Analysis_Work/WQSIS_Pull.csv")
+ptype<-subset(wqsis,select= c(PermitNbr,Category))
+alk<-merge(alk,ptype,by.x='PermitNo',by.y='PermitNbr')
+
+alk<-subset(alk,alk$Category=="DOM")
+
+#get 90th and 10th percentile for alkalinity by permittee
+alk90<-aggregate(ObservQty~PermitNo + UnitAbbr,alk,FUN='quantile', probs =.90)
+alk10<-aggregate(ObservQty~PermitNo + UnitAbbr,alk,FUN='quantile', probs =.10)
+alkmean<-aggregate(ObservQty~PermitNo + UnitAbbr,alk,mean)
+
+#get avgs 90th and 10th percentile and mean
+mean(alk90$ObservQty)
+# 134.56 mg/L
+
+mean(alk10$ObservQty)
+# 64.00 mg/L
+
+mean(alkmean$ObservQty)
+#100.47
+
+#get number of permittees
+n_distinct(alk$PermitNo)
+#12 permittees
