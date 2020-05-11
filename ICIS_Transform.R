@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("C:/COVID-19 WORK/ICIS_Work/DMRAlianaDataPull_TillamookCreamery.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101644 Canby Regency Mobile Home Park/2- Permit Development/Data+RPA/101644-DATA-ICISRawPull-05112020.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -21,11 +21,9 @@ names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
 #remove data where Result is blank
 data<-subset(data,!(is.na(Result)))
 
-#remove data where Result is "."
-data<-subset(data,!(Result=="."))
+#change data where Result is "." to "0", for some reason the export removes all preceeding and trailing 0s (so "0.3" becomes ".3", etc)
+data$Result<-ifelse(data$Result==".",0,data$Result)
 
-#remove data where Result is "0.00", this is a transcription error and should be blank
-data<-subset(data,!(Result==0.000))
 
 #examine NODI issues
 prob<-subset(data,!(is.na(NODI.Descriptor)))
@@ -35,13 +33,6 @@ data$Sampling.Frequency<-ifelse(is.na(data$Sampling.Frequency),"Unknown",data$Sa
 
 #save a copy of the data sheet for the excel output before we make too many more data transformations
 data1<-data
-
-#convert mg/L to ug/L for Chlorine
-data$Result<-case_when(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual'~data$Result*1000,
-                       !(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual')~data$Result)
-data$Unit<-case_when(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual'~"ug/L",
-                     !(data$Unit=="mg/L" & data$Parameter.Desc=='Chlorine, total residual')~data$Unit)
-
 
 ##need to convert farenheit tempt to celcius
 data$Result<-case_when(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, water deg. fahrenheit'~((data$Result-32)*0.5556),
