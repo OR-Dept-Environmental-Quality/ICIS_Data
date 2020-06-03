@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101644 Canby Regency Mobile Home Park/2- Permit Development/Data+RPA/101644-DATA-ICISRawPull-05112020.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101217 Independence STP/2- Permit Development/Data+RPA/101217-DATA-ICISrawpull-20200602.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -81,13 +81,18 @@ newmax<-merge(obs,newmax,all=TRUE)
 #calculate estimated # of samples taken (if they were consistent)
 #since not every month has the exact same number of days, use the average number of days in a month (30.42). 
 #This won't account for leap years, but if they are sampling daily then they will have so many samples this shouldn't be much of an issue
-newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~8*newmax$n,
+#average of 4.35 weeks in a month over the course of a year
+newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~round(2*4.35*newmax$n,0),
                            newmax$Sampling.Frequency=="Daily" ~round(30.42*newmax$n,0),
-                           newmax$Sampling.Frequency=="Weekly" ~4*newmax$n,
+                           newmax$Sampling.Frequency=="Weekly" ~round(4.35*newmax$n,0),
                            newmax$Sampling.Frequency=="Monthly"~ as.numeric(newmax$n),
                            newmax$Sampling.Frequency=="Quarterly"~as.numeric(newmax$n),
                            newmax$Sampling.Frequency=="Twice per Year"~as.numeric(newmax$n),
-                           newmax$Sampling.Frequency=="Three per Week"~12*newmax$n)
+                           newmax$Sampling.Frequency=="Three per Week"~round(3*4.35*newmax$n,0),
+                           newmax$Sampling.Frequency=="Five per Week"~round(5*4.35*newmax$n,0),
+                           newmax$Sampling.Frequency=="Twice per Month"~round(2*newmax$n,0)
+)
+
 
 #need to add coefficient of variation
 #for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
@@ -175,13 +180,17 @@ amstat<-merge(tenperc,amstat,all=TRUE)
 #calculate estimated # of samples taken (if they were consistent)
 #since not every month has the exact same number of days, use the average number of days in a month (30.42). 
 #This won't account for leap years, but if they are sampling daily then they will have so many samples this shouldn't be much of an issue
-amstat$est.samp<-case_when(amstat$Sampling.Frequency=="Twice per Week"~8*amstat$n,
+#average of 4.35 weeks in a month over the course of a year
+amstat$est.samp<-case_when(amstat$Sampling.Frequency=="Twice per Week"~round(2*4.35*amstat$n,0),
                            amstat$Sampling.Frequency=="Daily" ~round(30.42*amstat$n,0),
-                           amstat$Sampling.Frequency=="Weekly" ~4*amstat$n,
+                           amstat$Sampling.Frequency=="Weekly" ~round(4.35*amstat$n,0),
                            amstat$Sampling.Frequency=="Monthly"~ as.numeric(amstat$n),
                            amstat$Sampling.Frequency=="Quarterly"~as.numeric(amstat$n),
                            amstat$Sampling.Frequency=="Twice per Year"~as.numeric(amstat$n),
-                           amstat$Sampling.Frequency=="Three per Week"~12*amstat$n)
+                           amstat$Sampling.Frequency=="Three per Week"~round(3*4.35*amstat$n,0),
+                           amstat$Sampling.Frequency=="Five per Week"~round(5*4.35*amstat$n,0),
+                           amstat$Sampling.Frequency=="Twice per Month"~round(2*amstat$n,0)
+)
 
 #need to add coefficient of variation
 #for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
@@ -196,7 +205,7 @@ amstat$CV<-case_when(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twi
                      !(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
 
 #create table for ammonia RPA
-ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum"),
+ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value"),
                   select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
                            "season","Sampling.Frequency","n","est.samp",
                            "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
@@ -207,7 +216,7 @@ ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description
 #create another table for ammonia, this one not seasonal
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                             'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
-               & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum")
+               & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value")
                & !(Unit %in% 'lb/d')
                & Location.Description %in% 'Effluent Gross',
                select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
