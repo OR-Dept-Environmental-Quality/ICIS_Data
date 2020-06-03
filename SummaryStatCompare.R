@@ -290,7 +290,7 @@ saveWorkbook(wb,"C:/COVID-19 WORK/ICIS_Work/RPA_Data_Test/SummaryStatCompare.xls
 alk<-subset(data,data$ParameterDesc=="Alkalinity as Calcium Carbonate")
 
 #check permit ids, make sure all are domestic (no industrials)
-wqsis<-read.csv("C:/COVID-19 WORK/Gap_Analysis_Work/WQSIS_Pull.csv")
+wqsis<-read.csv("//deqhq1/WQSPfiles/Water Quality Permitting/PERMIT DEVELOPMENT/RPA and Permit Limit Development/2020 RPA project/Gap_Analysis_Work/WQSIS_Pull.csv")
 ptype<-subset(wqsis,select= c(PermitNbr,Category))
 alk<-merge(alk,ptype,by.x='PermitNo',by.y='PermitNbr')
 
@@ -314,3 +314,25 @@ mean(alkmean$ObservQty)
 #get number of permittees
 n_distinct(alk$PermitNo)
 #12 permittees
+
+#total number of data points 1297
+
+#########Want to do a further examination of ammonia CVs-see if there is a seasonal component######
+
+#just want ammonia data
+amm<-subset(data,data$ParameterDesc=="Ammonia as N")
+
+#ascribe a season
+amm$season<-ifelse(amm$datamonth %in% c(5,6,7,8,9,10),"summer","winter")
+
+ammcv<-amm %>%
+  group_by(PermitNo,season) %>%
+  summarise(amm_Average = mean(ObservQty), amm_StandardDev = sd(ObservQty)) %>%
+  mutate (ammcv = round(amm_StandardDev/amm_Average,2))
+
+ammsum<-ammcv %>%
+  group_by(season) %>%
+  summarise(average =mean(ammcv), med = median(ammcv), minimum = min(ammcv), maximum= max(ammcv), ninetyth = quantile(ammcv, 0.9))
+
+ggplot(data=ammcv,aes(x=))
+
