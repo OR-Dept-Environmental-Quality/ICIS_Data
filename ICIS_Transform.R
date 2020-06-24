@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101217 Independence STP/2- Permit Development/Data+RPA/101217-DATA-ICISrawpull-20200602.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101081 IP Springfield/2- Permit Development/Data+RPA/101081-DATA-ICISrawpull-20200624.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -44,28 +44,28 @@ data$Parameter.Desc<-case_when(data$Parameter.Desc=='Temperature, water deg. fah
 
 ##################Summarizing Data#################################
 #create maximum values dataset
-maxs<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,max)
+maxs<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,max)
 #change column name to maximum
-names(maxs)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Maximum")
-dist<-unique(subset(data,select=c( "NPDES.ID", "Location.Description","Parameter.Desc", "Statistic.Description","Sampling.Frequency","Unit")))
+names(maxs)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Maximum")
+dist<-unique(subset(data,select=c( "NPDES.ID", "Location.Description","Outfall","Parameter.Desc", "Statistic.Description","Sampling.Frequency","Unit")))
 newmax<-merge(dist,maxs,all=TRUE)
 
 #let's get minimums too
-mins<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,min)
+mins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,min)
 #change column name to maximum
-names(mins)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Minimum")
+names(mins)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Minimum")
 newmax<-merge(newmax,mins,all=TRUE)
 
 #calculate 10th and 90th percentiles
-ninperc<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.90)
+ninperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.90)
 
 #change column name to Ninety_Perc
-names(ninperc)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Ninety_Perc")
+names(ninperc)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Ninety_Perc")
 
-tenp<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.10)
+tenp<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.10)
 
 #change column name to Ten_Perc
-names(tenp)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","Ten_Perc")
+names(tenp)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Ten_Perc")
 
 #merge into main table
 newmax<-merge(ninperc,newmax,all=TRUE)
@@ -73,7 +73,7 @@ newmax<-merge(tenp,newmax,all=TRUE)
 
 #estimate # of samples taken
 #calculate # of observations per type
-obs<-data %>% count(Parameter.Desc,Location.Description,Statistic.Description,Sampling.Frequency,Unit)
+obs<-data %>% count(Parameter.Desc,Location.Description,Outfall,Statistic.Description,Sampling.Frequency,Unit)
 #merge in with our max data table
 newmax<-merge(obs,newmax,all=TRUE)
 
@@ -97,7 +97,7 @@ newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~round(2*4
 #need to add coefficient of variation
 #for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
 summary<-data %>%
-  group_by(Parameter.Desc, Location.Description, Statistic.Description, Sampling.Frequency, Unit) %>%
+  group_by(Parameter.Desc, Location.Description, Outfall, Statistic.Description, Sampling.Frequency, Unit) %>%
   summarise(avg = mean(Result), stdev = sd(Result)) %>%
   mutate (CV = round(stdev/avg,2))
 
@@ -111,7 +111,7 @@ newmax$CV<-case_when(newmax$Sampling.Frequency=="Monthly"~newmax$CV,
 
 #table of summary of all parameters
 sumdat<-subset(newmax,
-               select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
+               select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
                         "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV")
                )
@@ -122,7 +122,7 @@ sumdat<-subset(newmax,
 rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"pH",
                                             'Temperature, water deg. centigrade',
                                             'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
-               select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
+               select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
                         "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV")
                )
@@ -139,38 +139,38 @@ data$season<-ifelse(data$month %in% c(5,6,7,8,9,10),"summer","winter")
 #get data for ammonia RPA
 amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                        'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
-            & (Location.Description %in% "Effluent Gross") & !(Unit %in% "lb/d"))
+            &  !(Unit %in% "lb/d"))
 
 #create maximum values dataset
-ammmaxs<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,max)
+ammmaxs<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,max)
 #change column name to maximum
-names(ammmaxs)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Maximum")
+names(ammmaxs)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Maximum")
 dist<-unique(subset(amm,select=c( "NPDES.ID", "Location.Description","Parameter.Desc", "Statistic.Description","Sampling.Frequency","Unit","season")))
 amstat<-merge(dist,ammmaxs,all=TRUE)
 
 #let's get minimums too
-ammins<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,min)
+ammins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,min)
 #change column name to maximum
-names(ammins)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Minimum")
+names(ammins)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Minimum")
 amstat<-merge(amstat,ammins,all=TRUE)
 
 
 #estimate # of samples taken
 #calculate # of observations per type
-ammobs<-amm %>% count(Parameter.Desc,Location.Description,Statistic.Description,Sampling.Frequency,Unit,season)
+ammobs<-amm %>% count(Parameter.Desc,Location.Description,Outfall,Statistic.Description,Sampling.Frequency,Unit,season)
 #merge in with our max data table
 amstat<-merge(ammobs,amstat,all=TRUE)
 
 #calculate 10th and 90th percentiles
-ninetyperc<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.90)
+ninetyperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.90)
 
 #change column name to Ninety_Perc
-names(ninetyperc)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Ninety_Perc")
+names(ninetyperc)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Ninety_Perc")
 
-tenperc<-aggregate(Result~Parameter.Desc + Location.Description+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.10)
+tenperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.10)
 
 #change column name to Ten_Perc
-names(tenperc)<-c("Parameter.Desc","Location.Description","Statistic.Description","Sampling.Frequency","Unit","season","Ten_Perc")
+names(tenperc)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Ten_Perc")
 
 #merge into main ammonia table
 amstat<-merge(ninetyperc,amstat,all=TRUE)
@@ -195,7 +195,7 @@ amstat$est.samp<-case_when(amstat$Sampling.Frequency=="Twice per Week"~round(2*4
 #need to add coefficient of variation
 #for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
 amsum<-amm %>%
-  group_by(Parameter.Desc, Location.Description, Statistic.Description, Sampling.Frequency, Unit,season) %>%
+  group_by(Parameter.Desc, Location.Description, Outfall, Statistic.Description, Sampling.Frequency, Unit,season) %>%
   summarise(avg = mean(Result), stdev = sd(Result)) %>%
   mutate (CV = round(stdev/avg,2))
 
@@ -206,7 +206,7 @@ amstat$CV<-case_when(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twi
 
 #create table for ammonia RPA
 ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value"),
-                  select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
+                  select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                            "season","Sampling.Frequency","n","est.samp",
                            "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
 
@@ -217,9 +217,8 @@ ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                             'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
                & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value")
-               & !(Unit %in% 'lb/d')
-               & Location.Description %in% 'Effluent Gross',
-               select=c("Location.Description","NPDES.ID","Parameter.Desc","Statistic.Description",
+               & !(Unit %in% 'lb/d'),
+               select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                                "Sampling.Frequency","n","est.samp",
                                "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
 
@@ -234,14 +233,14 @@ wb<-createWorkbook()
 addWorksheet(wb,"pH and Chlorine RPA")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=1, x="Summary statistics for pH and Chlorine RPA analysis")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=2, x="CV only calculated for data with a monthly or less monitoring frequency, otherwise a CV of 0.6 is assumed")
-writeData(wb,sheet="pH and Chlorine RPA",startRow=3, x="avg is calculated using n, not est.samp")
+writeData(wb,sheet="pH and Chlorine RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
 writeData(wb,sheet="pH and Chlorine RPA",x=rpabasics,startCol=1, startRow=5)
 
 #sheet of Ammonia RPA relevant info
 addWorksheet(wb,"Ammonia RPA")
 writeData(wb,sheet="Ammonia RPA",startRow=1,x="Summary statistics for Ammonia RPA")
 writeData(wb,sheet="Ammonia RPA",startRow=2,x="winter=November - April, summer= May - October")
-writeData(wb,sheet="Ammonia RPA",startRow=3, x="avg is calculated using n, not est.samp")
+writeData(wb,sheet="Ammonia RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
 writeData(wb,sheet="Ammonia RPA",x="Seasonal",startCol=1, startRow=5)
 writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=17,startRow=5)
 writeData(wb,sheet="Ammonia RPA",x=ammrp,startCol=1, startRow=6)
@@ -250,7 +249,8 @@ writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=17,startRow=6)
 #sheet of all summary 
 addWorksheet(wb,"Parameter Summary")
 writeData(wb,sheet="Parameter Summary",startRow=1,x="Summary of all reported DMR parameters")
-writeData(wb,sheet="Parameter Summary",startRow=3,x=sumdat)
+writeData(wb,sheet="Parameter Summary",startRow=2, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
+writeData(wb,sheet="Parameter Summary",startRow=4,x=sumdat)
 
 #sheet of original data
 addWorksheet(wb,"ICIS Data")
