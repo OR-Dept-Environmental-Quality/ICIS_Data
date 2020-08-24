@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101081 IP Springfield/2- Permit Development/Data+RPA/101081-DATA-ICISrawpull-20200624.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101590 Foster Farms/2- Permit Development/Data+RPA/101590-DATA-ICISrawpull-20200824.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -77,6 +77,13 @@ obs<-data %>% count(Parameter.Desc,Location.Description,Outfall,Statistic.Descri
 #merge in with our max data table
 newmax<-merge(obs,newmax,all=TRUE)
 
+#get first observation date and last observation date
+start<-aggregate(Monitoring.Period.Start.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,min)
+end<-aggregate(Monitoring.Period.End.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,max)
+
+#merge into main table
+newmax<-merge(start,newmax,all=TRUE)
+newmax<-merge(end,newmax,all=TRUE)
 
 #calculate estimated # of samples taken (if they were consistent)
 #since not every month has the exact same number of days, use the average number of days in a month (30.42). 
@@ -90,7 +97,8 @@ newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~round(2*4
                            newmax$Sampling.Frequency=="Twice per Year"~as.numeric(newmax$n),
                            newmax$Sampling.Frequency=="Three per Week"~round(3*4.35*newmax$n,0),
                            newmax$Sampling.Frequency=="Five per Week"~round(5*4.35*newmax$n,0),
-                           newmax$Sampling.Frequency=="Twice per Month"~round(2*newmax$n,0)
+                           newmax$Sampling.Frequency=="Twice per Month"~round(2*newmax$n,0),
+                           newmax$Sampling.Frequency=="Once per 2 Weeks"~round(2*newmax$n,0)
 )
 
 
@@ -113,7 +121,7 @@ newmax$CV<-case_when(newmax$Sampling.Frequency=="Monthly"~newmax$CV,
 sumdat<-subset(newmax,
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
-                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV")
+                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date")
                )
 
 #create table for export to be used with RPA
@@ -124,7 +132,7 @@ rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"pH",
                                             'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
-                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV")
+                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date")
                )
 
 
@@ -154,6 +162,13 @@ ammins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic
 names(ammins)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Minimum")
 amstat<-merge(amstat,ammins,all=TRUE)
 
+#get first observation date and last observation date
+startam<-aggregate(Monitoring.Period.Start.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,min)
+endam<-aggregate(Monitoring.Period.End.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,max)
+
+#merge into main table
+amstat<-merge(startam,amstat,all=TRUE)
+amstat<-merge(endam,amstat,all=TRUE)
 
 #estimate # of samples taken
 #calculate # of observations per type
@@ -189,7 +204,8 @@ amstat$est.samp<-case_when(amstat$Sampling.Frequency=="Twice per Week"~round(2*4
                            amstat$Sampling.Frequency=="Twice per Year"~as.numeric(amstat$n),
                            amstat$Sampling.Frequency=="Three per Week"~round(3*4.35*amstat$n,0),
                            amstat$Sampling.Frequency=="Five per Week"~round(5*4.35*amstat$n,0),
-                           amstat$Sampling.Frequency=="Twice per Month"~round(2*amstat$n,0)
+                           amstat$Sampling.Frequency=="Twice per Month"~round(2*amstat$n,0),
+                           amstat$Sampling.Frequency=="Once per 2 Weeks"~round(2*amstat$n,0)
 )
 
 #need to add coefficient of variation
@@ -205,10 +221,10 @@ amstat$CV<-case_when(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twi
                      !(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
 
 #create table for ammonia RPA
-ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value"),
+ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value", "Weekly Average"),
                   select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                            "season","Sampling.Frequency","n","est.samp",
-                           "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
+                           "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
 
 #sort
 ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description),]
@@ -216,11 +232,11 @@ ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description
 #create another table for ammonia, this one not seasonal
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                             'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
-               & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value")
+               & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value","Weekly Average")
                & !(Unit %in% 'lb/d'),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                                "Sampling.Frequency","n","est.samp",
-                               "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV"))
+                               "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.End.Date","Monitoring.Period.Start.Date"))
 
 
 ##########################################EXCEL EXPORT###########################
@@ -242,9 +258,9 @@ writeData(wb,sheet="Ammonia RPA",startRow=1,x="Summary statistics for Ammonia RP
 writeData(wb,sheet="Ammonia RPA",startRow=2,x="winter=November - April, summer= May - October")
 writeData(wb,sheet="Ammonia RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
 writeData(wb,sheet="Ammonia RPA",x="Seasonal",startCol=1, startRow=5)
-writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=17,startRow=5)
+writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=21,startRow=5)
 writeData(wb,sheet="Ammonia RPA",x=ammrp,startCol=1, startRow=6)
-writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=17,startRow=6)
+writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=21,startRow=6)
 
 #sheet of all summary 
 addWorksheet(wb,"Parameter Summary")
