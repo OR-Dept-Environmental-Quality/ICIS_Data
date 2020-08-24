@@ -7,7 +7,8 @@ library(openxlsx)
 
 
 #import data
-icis<-read_excel("C:/COVID-19 WORK/Gap_Analysis_Work/ICIS_SummaryStats_2010-2020.xlsx",skip=4)
+icis<-read_excel("//deqhq1/WQSPfiles/Water Quality Permitting/PERMIT DEVELOPMENT/RPA and Permit Limit Development/2020 RPA project/Gap_Analysis_Work/ICIS_SummaryStats_2010-2020-v2(August).xlsx",
+                 skip=4)
 
 #convert names so that they are usable
 #note that DMR.Value is actually a count of the number of observations
@@ -78,7 +79,7 @@ sumicis<-aggregate(est.samp~NPDES.ID+Location.Description+Parameter.Desc+Statist
 #go through by RPA type to see if data is sufficient
 
 #to do that we need to bring in permittee information
-permittee<-read_excel("C:/COVID-19 WORK/Gap_Analysis_Work/5yrNPDESIssuancePlan.xlsx",sheet="PermitteeInfo_R",
+permittee<-read_excel("//deqhq1/WQSPfiles/Water Quality Permitting/PERMIT DEVELOPMENT/RPA and Permit Limit Development/2020 RPA project/Gap_Analysis_Work/2021_GapAnalysis.xlsx",sheet="PermitteeInfo_R",
                       col_types = c("text","text","text","text","text","text","date","text","text","text",
                                     "text","text","text","text","text","text","text","text","text"))
 
