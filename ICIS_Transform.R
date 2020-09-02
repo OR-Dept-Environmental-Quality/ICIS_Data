@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101590 Foster Farms/2- Permit Development/Data+RPA/101590-DATA-ICISrawpull-20200824.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101804 Bio-Oregon/2- Permit Development/Data+RPA/101804-DATA-ICISrawpull-20200901.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -221,7 +221,10 @@ amstat$CV<-case_when(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twi
                      !(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
 
 #create table for ammonia RPA
-ammrp<-subset(amstat,Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value", "Weekly Average"),
+ammrp<-subset(amstat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
+                                           'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
+              & !(Unit %in% 'lb/d')
+              & !(Location.Description %in% "Raw Sewage Influent"),
                   select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                            "season","Sampling.Frequency","n","est.samp",
                            "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
@@ -232,8 +235,8 @@ ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description
 #create another table for ammonia, this one not seasonal
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
                                             'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
-               & Statistic.Description %in% c("Monthly Average","Daily Maximum","Maximum","Minimum","Daily Minimum","Maximum Value","Weekly Average")
-               & !(Unit %in% 'lb/d'),
+               & !(Unit %in% 'lb/d')
+               & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                                "Sampling.Frequency","n","est.samp",
                                "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.End.Date","Monitoring.Period.Start.Date"))
