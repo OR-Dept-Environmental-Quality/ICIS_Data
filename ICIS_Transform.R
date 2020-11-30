@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101804 Bio-Oregon/2- Permit Development/Data+RPA/101804-DATA-ICISrawpull-20200901.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/102218 Black Butte Ranch/2- Permit Development/Data+RPA/102218-DATA-ICISrawpull-20201016.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -127,7 +127,7 @@ sumdat<-subset(newmax,
 #create table for export to be used with RPA
 #chlorine, pH, 
 #for any toxics- will need to examine the summary of all parameters table
-rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"pH",
+rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"pH","pH, maximum",
                                             'Temperature, water deg. centigrade',
                                             'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
@@ -145,7 +145,7 @@ data$month<-month(data$Monitoring.Period.End.Date)
 data$season<-ifelse(data$month %in% c(5,6,7,8,9,10),"summer","winter")
 
 #get data for ammonia RPA
-amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
+amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH, maximum",
                                        'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
             &  !(Unit %in% "lb/d"))
 
@@ -221,7 +221,7 @@ amstat$CV<-case_when(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twi
                      !(amstat$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
 
 #create table for ammonia RPA
-ammrp<-subset(amstat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
+ammrp<-subset(amstat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH, maximum",
                                            'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
               & !(Unit %in% 'lb/d')
               & !(Location.Description %in% "Raw Sewage Influent"),
@@ -233,13 +233,13 @@ ammrp<-subset(amstat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]"
 ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description),]
 
 #create another table for ammonia, this one not seasonal
-ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]",
+ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH, maximum",
                                             'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
                & !(Unit %in% 'lb/d')
                & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                                "Sampling.Frequency","n","est.samp",
-                               "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.End.Date","Monitoring.Period.Start.Date"))
+                               "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
 
 
 ##########################################EXCEL EXPORT###########################
