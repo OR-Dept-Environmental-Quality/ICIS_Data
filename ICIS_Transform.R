@@ -11,7 +11,7 @@ options(scipen=999)
 
 #load ICIS pull
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/102218 Black Butte Ranch/2- Permit Development/Data+RPA/102218-DATA-ICISrawpull-20201016.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101348 WES TriCity/2- Permit Development/Data+RPA/101348-DATA-ICISrawpull-20210202.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
@@ -127,7 +127,7 @@ sumdat<-subset(newmax,
 #create table for export to be used with RPA
 #chlorine, pH, 
 #for any toxics- will need to examine the summary of all parameters table
-rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"pH","pH, maximum",
+rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"Chlorine, free available","pH","pH, maximum",
                                             'Temperature, water deg. centigrade',
                                             'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
