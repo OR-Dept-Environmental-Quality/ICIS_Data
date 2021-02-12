@@ -9,9 +9,10 @@ library(lubridate)
 #attempt to turn off scientific notation
 options(scipen=999)
 
-#load ICIS pull
+#load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
+# there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101348 WES TriCity/2- Permit Development/Data+RPA/101348-DATA-ICISrawpull-20210202.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/100982 Pendleton/2- Permit Development/Data+RPA/100982-DATA-ICISrawpull-20210211.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
