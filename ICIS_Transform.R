@@ -44,45 +44,38 @@ data$Parameter.Desc<-case_when(data$Parameter.Desc=='Temperature, water deg. fah
                      !(data$Parameter.Desc=='Temperature, water deg. fahrenheit')~data$Parameter.Desc)
 
 ##################Summarizing Data#################################
-#create maximum values dataset
-maxs<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,max)
-#change column name to maximum
-names(maxs)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Maximum")
+#get unique values
 dist<-unique(subset(data,select=c( "NPDES.ID", "Location.Description","Outfall","Parameter.Desc", "Statistic.Description","Sampling.Frequency","Unit")))
-newmax<-merge(dist,maxs,all=TRUE)
+
+#create maximum values dataset
+maxs<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,max) %>%
+  rename(Maximum=Result)
 
 #let's get minimums too
-mins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,min)
-#change column name to maximum
-names(mins)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Minimum")
-newmax<-merge(newmax,mins,all=TRUE)
+mins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,min) %>%
+  rename(Minimum=Result)
 
 #calculate 10th and 90th percentiles
-ninperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.90)
+ninperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.90) %>%
+  rename(Ninety_Perc=Result)
 
-#change column name to Ninety_Perc
-names(ninperc)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Ninety_Perc")
-
-tenp<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.10)
-
-#change column name to Ten_Perc
-names(tenp)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","Ten_Perc")
-
-#merge into main table
-newmax<-merge(ninperc,newmax,all=TRUE)
-newmax<-merge(tenp,newmax,all=TRUE)
+tenp<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,FUN='quantile', probs =.10) %>%
+  rename(Ten_Perc=Result)
 
 #estimate # of samples taken
 #calculate # of observations per type
 obs<-data %>% count(Parameter.Desc,Location.Description,Outfall,Statistic.Description,Sampling.Frequency,Unit)
-#merge in with our max data table
-newmax<-merge(obs,newmax,all=TRUE)
 
 #get first observation date and last observation date
 start<-aggregate(Monitoring.Period.Start.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,min)
 end<-aggregate(Monitoring.Period.End.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit,data,max)
 
 #merge into main table
+newmax<-merge(dist,maxs,all=TRUE)
+newmax<-merge(newmax,mins,all=TRUE)
+newmax<-merge(ninperc,newmax,all=TRUE)
+newmax<-merge(tenp,newmax,all=TRUE)
+newmax<-merge(obs,newmax,all=TRUE)
 newmax<-merge(start,newmax,all=TRUE)
 newmax<-merge(end,newmax,all=TRUE)
 
@@ -102,7 +95,6 @@ newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~round(2*4
                            newmax$Sampling.Frequency=="Once per 2 Weeks"~round(2*newmax$n,0)
 )
 
-
 #need to add coefficient of variation
 #for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
 summary<-data %>%
@@ -114,9 +106,6 @@ newmax<-merge(summary,newmax)
 
 newmax$CV<-case_when(newmax$Sampling.Frequency=="Monthly"~newmax$CV,
                      !(newmax$Sampling.Frequency=="Monthly")~0.6)
-
-
-
 
 #table of summary of all parameters
 sumdat<-subset(newmax,
@@ -150,48 +139,40 @@ amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH
                                        'Temperature, water deg. centigrade', 'Alkalinity, total [as CaCO3]')
             &  !(Unit %in% "lb/d"))
 
-#create maximum values dataset
-ammmaxs<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,max)
-#change column name to maximum
-names(ammmaxs)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Maximum")
+#get unique values
 dist<-unique(subset(amm,select=c( "NPDES.ID", "Location.Description","Parameter.Desc", "Statistic.Description","Sampling.Frequency","Unit","season")))
-amstat<-merge(dist,ammmaxs,all=TRUE)
+
+#create maximum values dataset
+ammmaxs<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,max) %>%
+  rename(Maximum=Result)
 
 #let's get minimums too
-ammins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,min)
-#change column name to maximum
-names(ammins)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Minimum")
-amstat<-merge(amstat,ammins,all=TRUE)
+ammins<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,min) %>%
+  rename(Minimum=Result)
 
 #get first observation date and last observation date
 startam<-aggregate(Monitoring.Period.Start.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,min)
 endam<-aggregate(Monitoring.Period.End.Date~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,max)
 
-#merge into main table
-amstat<-merge(startam,amstat,all=TRUE)
-amstat<-merge(endam,amstat,all=TRUE)
-
 #estimate # of samples taken
 #calculate # of observations per type
 ammobs<-amm %>% count(Parameter.Desc,Location.Description,Outfall,Statistic.Description,Sampling.Frequency,Unit,season)
-#merge in with our max data table
-amstat<-merge(ammobs,amstat,all=TRUE)
 
 #calculate 10th and 90th percentiles
-ninetyperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.90)
+ninetyperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.90) %>%
+  rename(Ninety_Perc=Result)
 
-#change column name to Ninety_Perc
-names(ninetyperc)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Ninety_Perc")
-
-tenperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.10)
-
-#change column name to Ten_Perc
-names(tenperc)<-c("Parameter.Desc","Location.Description","Outfall","Statistic.Description","Sampling.Frequency","Unit","season","Ten_Perc")
+tenperc<-aggregate(Result~Parameter.Desc + Location.Description+Outfall+Statistic.Description+Sampling.Frequency+Unit+season,amm,FUN='quantile', probs =.10) %>%
+  rename(Ten_Perc=Result)
 
 #merge into main ammonia table
+amstat<-merge(dist,ammmaxs,all=TRUE)
+amstat<-merge(amstat,ammins,all=TRUE)
+amstat<-merge(startam,amstat,all=TRUE)
+amstat<-merge(endam,amstat,all=TRUE)
+amstat<-merge(ammobs,amstat,all=TRUE)
 amstat<-merge(ninetyperc,amstat,all=TRUE)
 amstat<-merge(tenperc,amstat,all=TRUE)
-
 
 #calculate estimated # of samples taken (if they were consistent)
 #since not every month has the exact same number of days, use the average number of days in a month (30.42). 
