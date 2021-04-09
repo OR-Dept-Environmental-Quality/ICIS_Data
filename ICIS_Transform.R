@@ -12,9 +12,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/100982 Pendleton/2- Permit Development/Data+RPA/100982-DATA-ICISrawpull-20210211.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101640 Hubbard/2- Permit Development/Data+RPA/101640-DATA-ICISrawpull-20210409.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
+
+#save pathway so we can save result in same folder
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101640 Hubbard/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
@@ -260,7 +263,7 @@ writeData(wb,sheet="ICIS Data",startRow=2,x="Note that any data where the result
 writeData(wb,sheet="ICIS Data",startRow=3,x="This data has not had any unit transformations done")
 writeData(wb,sheet="ICIS Data",startRow=5,x=data1)
 
-saveWorkbook(wb,"C:/COVID-19 WORK/ICIS_Work/ICIS_RPAPrep.xlsx",overwrite=TRUE)
+saveWorkbook(wb,paste(path,"X-DATA-ICISRPAReady-",format(Sys.Date(),"%Y%m%d"),".xlsx",sep=""),overwrite=TRUE)
 
 
 
