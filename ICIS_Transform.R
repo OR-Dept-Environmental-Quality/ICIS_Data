@@ -12,12 +12,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101640 Hubbard/2- Permit Development/Data+RPA/101640-DATA-ICISrawpull-20210409.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101136 Stanfield STP/2- Permit Development/Data+RPA/101136-DATA-ICISrawpull-20210830.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
 #save pathway so we can save result in same folder
-path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101640 Hubbard/2- Permit Development/Data+RPA/"
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101136 Stanfield STP/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
@@ -27,7 +27,6 @@ data<-subset(data,!(is.na(Result)))
 
 #change data where Result is "." to "0", for some reason the export removes all preceeding and trailing 0s (so "0.3" becomes ".3", etc)
 data$Result<-ifelse(data$Result==".",0,data$Result)
-
 
 #examine NODI issues
 prob<-subset(data,!(is.na(NODI.Descriptor)))
@@ -45,6 +44,7 @@ data$Unit<-case_when(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, wat
                      !(data$Unit=="deg F" & data$Parameter.Desc=='Temperature, water deg. fahrenheit')~data$Unit)
 data$Parameter.Desc<-case_when(data$Parameter.Desc=='Temperature, water deg. fahrenheit'~"Temperature, water deg. centigrade",
                      !(data$Parameter.Desc=='Temperature, water deg. fahrenheit')~data$Parameter.Desc)
+
 
 ##################Summarizing Data#################################
 #get unique values
@@ -227,6 +227,23 @@ ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]
                                "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
 
 
+
+##convert dates to make them easier to work with (at request of Erich Brandstetter) for each sheet
+rpabasics$Monitoring.Period.Start.Date<-format(rpabasics$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
+rpabasics$Monitoring.Period.End.Date<-format(rpabasics$Monitoring.Period.End.Date,format= '%m/%d/%Y')
+
+ammrp$Monitoring.Period.Start.Date<-format(ammrp$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
+ammrp$Monitoring.Period.End.Date<-format(ammrp$Monitoring.Period.End.Date,format= '%m/%d/%Y')
+
+ammtot$Monitoring.Period.Start.Date<-format(ammtot$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
+ammtot$Monitoring.Period.End.Date<-format(ammtot$Monitoring.Period.End.Date,format= '%m/%d/%Y')
+
+sumdat$Monitoring.Period.Start.Date<-format(sumdat$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
+sumdat$Monitoring.Period.End.Date<-format(sumdat$Monitoring.Period.End.Date,format= '%m/%d/%Y')
+
+data1$Monitoring.Period.Start.Date<-format(data1$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
+data1$Monitoring.Period.End.Date<-format(data1$Monitoring.Period.End.Date,format= '%m/%d/%Y')
+
 ##########################################EXCEL EXPORT###########################
 #create workbook to be exported
 wb<-createWorkbook()
@@ -238,38 +255,35 @@ addWorksheet(wb,"pH and Chlorine RPA")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=1, x="Summary statistics for pH and Chlorine RPA analysis")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=2, x="CV only calculated for data with a monthly or less monitoring frequency, otherwise a CV of 0.6 is assumed")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
-writeData(wb,sheet="pH and Chlorine RPA",x=rpabasics,startCol=1, startRow=5)
+writeData(wb,sheet="pH and Chlorine RPA",startRow=4, x="Dates are in Month/Day/Year format")
+writeData(wb,sheet="pH and Chlorine RPA",x=rpabasics,startCol=1, startRow=6)
 
 #sheet of Ammonia RPA relevant info
 addWorksheet(wb,"Ammonia RPA")
 writeData(wb,sheet="Ammonia RPA",startRow=1,x="Summary statistics for Ammonia RPA")
 writeData(wb,sheet="Ammonia RPA",startRow=2,x="winter=November - April, summer= May - October")
 writeData(wb,sheet="Ammonia RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
-writeData(wb,sheet="Ammonia RPA",x="Seasonal",startCol=1, startRow=5)
-writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=21,startRow=5)
-writeData(wb,sheet="Ammonia RPA",x=ammrp,startCol=1, startRow=6)
-writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=21,startRow=6)
+writeData(wb,sheet="Ammonia RPA",startRow=4, x="Dates are in Month/Day/Year format")
+writeData(wb,sheet="Ammonia RPA",x="Seasonal",startCol=1, startRow=6)
+writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=21,startRow=6)
+writeData(wb,sheet="Ammonia RPA",x=ammrp,startCol=1, startRow=7)
+writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=21,startRow=7)
 
 #sheet of all summary 
 addWorksheet(wb,"Parameter Summary")
 writeData(wb,sheet="Parameter Summary",startRow=1,x="Summary of all reported DMR parameters")
 writeData(wb,sheet="Parameter Summary",startRow=2, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
-writeData(wb,sheet="Parameter Summary",startRow=4,x=sumdat)
+writeData(wb,sheet="Parameter Summary",startRow=4, x="Dates are in Month/Day/Year format")
+writeData(wb,sheet="Parameter Summary",startRow=5,x=sumdat)
 
 #sheet of original data
 addWorksheet(wb,"ICIS Data")
 writeData(wb,sheet="ICIS Data",startRow=1,x="Data from ICIS")
 writeData(wb,sheet="ICIS Data",startRow=2,x="Note that any data where the result was not reported has been removed")
 writeData(wb,sheet="ICIS Data",startRow=3,x="This data has not had any unit transformations done")
-writeData(wb,sheet="ICIS Data",startRow=5,x=data1)
+writeData(wb,sheet="ICIS Data",startRow=4, x="Dates are in Month/Day/Year format")
+writeData(wb,sheet="ICIS Data",startRow=6,x=data1)
 
 saveWorkbook(wb,paste(path,"X-DATA-ICISRPAReady-",format(Sys.Date(),"%Y%m%d"),".xlsx",sep=""),overwrite=TRUE)
-
-
-
-
-
-
-
 
 
