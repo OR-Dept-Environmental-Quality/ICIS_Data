@@ -5,6 +5,7 @@ library(tidyverse)
 library(dplyr)
 library(openxlsx)
 library(lubridate)
+library(ggplot2)
 
 #attempt to turn off scientific notation
 options(scipen=999)
@@ -12,12 +13,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101136 Stanfield STP/2- Permit Development/Data+RPA/101136-DATA-ICISrawpull-20210830.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101773 Brookings STP/2- Permit Development/Data+RPA/101773-DATA-ICISrawpull-20210922.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
 #save pathway so we can save result in same folder
-path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101136 Stanfield STP/2- Permit Development/Data+RPA/"
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101773 Brookings STP/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
@@ -244,6 +245,38 @@ sumdat$Monitoring.Period.End.Date<-format(sumdat$Monitoring.Period.End.Date,form
 data1$Monitoring.Period.Start.Date<-format(data1$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
 data1$Monitoring.Period.End.Date<-format(data1$Monitoring.Period.End.Date,format= '%m/%d/%Y')
 
+
+#############Temperature and Flow data#######################
+
+#get temperature and flow data to help Erich with TORCH analysis
+tf<-subset(data,Parameter.Desc %in% c('Flow, in conduit or thru treatment plant','Temperature, water deg. centigrade'))
+
+#shorten parameters to just temperature and flow
+tf$Parameter.Desc<-ifelse(tf$Parameter.Desc=='Flow, in conduit or thru treatment plant',"Flow",
+                          (ifelse(tf$Parameter.Desc=='Temperature, water deg. centigrade',"Temperature",tf$Parameter.Desc)))
+
+#desirable to have parameter, statistic description, and units all in one cell
+tf$header<-paste(tf$Location.Description,tf$Parameter.Desc,tf$Statistic.Description,tf$Unit,sep="-")
+
+#just get variables we need then convert from long to wide
+tfsub<-subset(tf,select=c('Monitoring.Period.Start.Date',"Result","header"))
+
+tfspr<-spread(tfsub,header,Result)
+
+#reformat date to make it easier to read
+tfspr$Monitoring.Period.Start.Date<-format(tfspr$Monitoring.Period.Start.Date,format = "%m/%d/%Y")
+           
+#plots for flow and temperature
+tf$Monitoring.Period.Start.Date<-as.Date(tf$Monitoring.Period.Start.Date)
+tfplot<-ggplot(data=tf, aes(x=Monitoring.Period.Start.Date,y=Result,color=Parameter.Desc))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(~Location.Description+Parameter.Desc+Statistic.Description+Unit,scales="free")+
+  scale_color_manual(values=c("#003366","#990000"))+
+  theme_bw()+
+  scale_x_date(date_labels="%b-%Y")
+
+
 ##########################################EXCEL EXPORT###########################
 #create workbook to be exported
 wb<-createWorkbook()
@@ -283,6 +316,15 @@ writeData(wb,sheet="ICIS Data",startRow=2,x="Note that any data where the result
 writeData(wb,sheet="ICIS Data",startRow=3,x="This data has not had any unit transformations done")
 writeData(wb,sheet="ICIS Data",startRow=4, x="Dates are in Month/Day/Year format")
 writeData(wb,sheet="ICIS Data",startRow=6,x=data1)
+
+#sheet for temperature and flow
+addWorksheet(wb,"Flow+Temp")
+writeData(wb,sheet="Flow+Temp",startRow=1,x="Flow and Temperature data from ICIS")
+writeData(wb,sheet="Flow+Temp",startRow=2,x="Reported flow and temperature for each month based on start date")
+writeData(wb,sheet="Flow+Temp",startRow=2,x="Scales on plots may vary from plot to plot")
+writeData(wb,sheet="Flow+Temp",startRow=5,x=tfspr)
+print(tfplot)
+insertPlot(wb,sheet="Flow+Temp",width=15,height=15,startCol=15,fileType='png',units="in",dpi=300)
 
 saveWorkbook(wb,paste(path,"X-DATA-ICISRPAReady-",format(Sys.Date(),"%Y%m%d"),".xlsx",sep=""),overwrite=TRUE)
 
