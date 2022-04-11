@@ -13,12 +13,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/103006 Gold Beach/2- Permit Development/Data+RPA/103006-DATA-ICISrawpull-20211108.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101639 Creswell STP/2- Permit Development/Data+RPA/101639-DATA-ICISrawpull-20220407.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
 #save pathway so we can save result in same folder
-path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/103006 Gold Beach/2- Permit Development/Data+RPA/"
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101639 Creswell STP/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
@@ -121,7 +121,7 @@ sumdat<-subset(newmax,
 #create table for export to be used with RPA
 #chlorine, pH, 
 #for any toxics- will need to examine the summary of all parameters table
-rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"Chlorine, free available","pH","pH, maximum",
+rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"Chlorine, free available","pH","pH, maximum","pH, minimum",
                                             'Temperature, water deg. centigrade',"Temperature, water deg. centigrade (converted from deg. F)",
                                             'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
@@ -139,7 +139,7 @@ data$month<-month(data$Monitoring.Period.End.Date)
 data$season<-ifelse(data$month %in% c(5,6,7,8,9,10),"summer","winter")
 
 #get data for ammonia RPA
-amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH, maximum",
+amm<-subset(data,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH, maximum","pH, minimum",
                                        'Temperature, water deg. centigrade', "Temperature, water deg. centigrade (converted from deg. F)",
                                        'Alkalinity, total [as CaCO3]')
             &  !(Unit %in% "lb/d"))
