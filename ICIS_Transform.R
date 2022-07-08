@@ -13,12 +13,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/102497 Newport/2- Permit Development/Data+RPA/102497-DATA-ICISrawpull-20220505.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101081 IP Springfield/2- Permit Development/Data+RPA/101081-DATA-ICISrawpull-20220708.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
 #save pathway so we can save result in same folder
-path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/102497 Newport/2- Permit Development/Data+RPA/"
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101081 IP Springfield/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
@@ -100,7 +100,7 @@ newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~round(2*4
 )
 
 #need to add coefficient of variation
-#for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
+#for monthly sampling frequency, we can calculate it, but for anything more we can assume 0.6 (TSD Appendix E-3)
 summary<-data %>%
   group_by(Parameter.Desc, Location.Description, Outfall, Statistic.Description, Sampling.Frequency, Unit) %>%
   summarise(avg = mean(Result), stdev = sd(Result)) %>%
@@ -259,8 +259,8 @@ tf$Parameter.Desc<-ifelse(tf$Parameter.Desc=='Flow, in conduit or thru treatment
                             ifelse(tf$Parameter.Desc=="Temperature, water deg. centigrade (converted from deg. F)",'Temperature (converted from deg. F)',
                                    tf$Parameter.Desc)))
 
-#desirable to have parameter, statistic description, and units all in one cell
-tf$header<-paste(tf$Location.Description,tf$Parameter.Desc,tf$Statistic.Description,tf$Unit,sep="-")
+#desirable to have parameter, statistic description, and units all in one cell - add location description and outfall to ensure no duplication
+tf$header<-paste(tf$Outfall,tf$Location.Description,tf$Parameter.Desc,tf$Statistic.Description,tf$Unit,sep="-")
 
 #just get variables we need then convert from long to wide
 tfsub<-subset(tf,select=c('Monitoring.Period.Start.Date',"Result","header"))
