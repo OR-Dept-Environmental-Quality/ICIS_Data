@@ -13,12 +13,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101639 Creswell STP/2- Permit Development/Data+RPA/101639-DATA-ICISrawpull-20220407.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/102497 Newport/2- Permit Development/Data+RPA/102497-DATA-ICISrawpull-20220505.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
 #save pathway so we can save result in same folder
-path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101639 Creswell STP/2- Permit Development/Data+RPA/"
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/102497 Newport/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
