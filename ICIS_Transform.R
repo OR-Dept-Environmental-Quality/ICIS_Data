@@ -13,12 +13,12 @@ options(scipen=999)
 #load ICIS pull, note that if you get a bunch of warning messages where it says it is "expecting *x* (date, numeric, etc) in *y*..." it is working, 
 # there are just some strange gaps in the raw data pull that R ends up ignoring but don't affect the data
 
-data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101081 IP Springfield/2- Permit Development/Data+RPA/101081-DATA-ICISrawpull-20220708.xlsx",skip=4,
+data<-read_excel("//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101994 Wallowa/2- Permit Development/Data+RPA/101994-DATA-ICISrawpull-20220627.xlsx",skip=4,
                  col_types=c("text","text","text","date","date",
                              "text","text","text","numeric","text","text","text"))
 
 #save pathway so we can save result in same folder
-path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101081 IP Springfield/2- Permit Development/Data+RPA/"
+path<-"//deqhq1/WQ-Share/WQPPD/NPDES Permit Issuance/101994 Wallowa/2- Permit Development/Data+RPA/"
 
 #convert names so that they are usable
 names(data)<-str_replace_all(names(data), c(" " = "." , "," = "" ))
@@ -100,7 +100,7 @@ newmax$est.samp<-case_when(newmax$Sampling.Frequency=="Twice per Week"~round(2*4
 )
 
 #need to add coefficient of variation
-#for monthly sampling frequency, we can calculate it, but for anything more we can assume 0.6 (TSD Appendix E-3)
+#for monthly sampling frequency, we can calculate it, but for anything more frequent we can assume 0.6 (TSD Appendix E-3)
 summary<-data %>%
   group_by(Parameter.Desc, Location.Description, Outfall, Statistic.Description, Sampling.Frequency, Unit) %>%
   summarise(avg = mean(Result), stdev = sd(Result)) %>%
@@ -108,8 +108,8 @@ summary<-data %>%
 
 newmax<-merge(summary,newmax)
 
-newmax$CV<-case_when(newmax$Sampling.Frequency=="Monthly"~newmax$CV,
-                     !(newmax$Sampling.Frequency=="Monthly")~0.6)
+newmax$CV<-case_when(newmax$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year")~newmax$CV,
+                     !(newmax$Sampling.Frequency %in% c("Monthly","Quarterly","Twice per Year"))~0.6)
 
 #table of summary of all parameters
 sumdat<-subset(newmax,
@@ -123,11 +123,15 @@ sumdat<-subset(newmax,
 #for any toxics- will need to examine the summary of all parameters table
 rpabasics<-subset(newmax,Parameter.Desc %in% c('Chlorine, total residual',"Chlorine, free available","pH","pH, maximum","pH, minimum",
                                             'Temperature, water deg. centigrade',"Temperature, water deg. centigrade (converted from deg. F)",
-                                            'Alkalinity, total [as CaCO3]') & !(Location.Description %in% "Raw Sewage Influent"),
+                                            'Alkalinity, total [as CaCO3]') & 
+                        !(grepl(paste("Raw Sewage Influent"),Location.Description)) & 
+                        !(Statistic.Description %in% "Daily Minimum"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                         "Sampling.Frequency","n","est.samp",
-                        "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date")
+                        "Maximum","Minimum","Ninety_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date")
                )
+#sort
+rpabasics<-rpabasics[order(rpabasics$Location.Description,rpabasics$Parameter.Desc,rpabasics$Statistic.Description),]
 
 
 #########################AMMONIA RPA WORK #######################################
@@ -196,7 +200,7 @@ amstat$est.samp<-case_when(amstat$Sampling.Frequency=="Twice per Week"~round(2*4
 )
 
 #need to add coefficient of variation
-#for monthly sampling frequency, we can calculate it, but for anything else we can assume 0.6 (TSD Appendix E-3)
+#for monthly sampling frequency, we can calculate it, but for more frequent sampling we can assume 0.6 (TSD Appendix E-3)
 amsum<-amm %>%
   group_by(Parameter.Desc, Location.Description, Outfall, Statistic.Description, Sampling.Frequency, Unit,season) %>%
   summarise(avg = mean(Result), stdev = sd(Result)) %>%
@@ -212,23 +216,27 @@ ammrp<-subset(amstat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]"
                                            'Temperature, water deg. centigrade', "Temperature, water deg. centigrade (converted from deg. F)",
                                            'Alkalinity, total [as CaCO3]')
               & !(Unit %in% 'lb/d')
-              & !(Location.Description %in% "Raw Sewage Influent"),
+              & !(grepl(paste("Raw Sewage Influent"),Location.Description))
+              & !(Statistic.Description %in% "Daily Minimum"),
                   select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                            "season","Sampling.Frequency","n","est.samp",
-                           "Maximum","Minimum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
+                           "Maximum","Minimum","Ninety_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
 
 #sort
-ammrp<-ammrp[order(ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description),]
+ammrp<-ammrp[order(ammrp$Location.Description,ammrp$Parameter.Desc,ammrp$season,ammrp$Statistic.Description),]
 
 #create another table for ammonia, this one not seasonal
 ammtot<-subset(sumdat,Parameter.Desc %in% c("pH","Nitrogen, ammonia total [as N]","pH, maximum",
                                             'Temperature, water deg. centigrade',"Temperature, water deg. centigrade (converted from deg. F)", 'Alkalinity, total [as CaCO3]')
                & !(Unit %in% 'lb/d')
-               & !(Location.Description %in% "Raw Sewage Influent"),
+               & !(grepl(paste("Raw Sewage Influent"),Location.Description))
+               & !(Statistic.Description %in% "Daily Minimum"),
                select=c("Location.Description","Outfall","NPDES.ID","Parameter.Desc","Statistic.Description",
                                "Sampling.Frequency","n","est.samp",
-                               "Maximum","avg","Ninety_Perc","Ten_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
+                               "Maximum","Minimum","Ninety_Perc","Unit","CV","Monitoring.Period.Start.Date","Monitoring.Period.End.Date"))
 
+#sort
+ammtot<-ammtot[order(ammtot$Location.Description,ammtot$Parameter.Desc,ammtot$Statistic.Description),]
 
 
 ##convert dates to make them easier to work with (at request of Erich Brandstetter) for each sheet
@@ -298,20 +306,20 @@ wrap<-createStyle(wrapText=TRUE)
 addWorksheet(wb,"pH and Chlorine RPA")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=1, x="Summary statistics for pH and Chlorine RPA analysis")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=2, x="CV only calculated for data with a monthly or less monitoring frequency, otherwise a CV of 0.6 is assumed")
-writeData(wb,sheet="pH and Chlorine RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
+writeData(wb,sheet="pH and Chlorine RPA",startRow=3, x="90th percentiles are calculated using n, not est.samp")
 writeData(wb,sheet="pH and Chlorine RPA",startRow=4, x="Dates are in Month/Day/Year format")
 writeData(wb,sheet="pH and Chlorine RPA",x=rpabasics,startCol=1, startRow=6)
 
 #sheet of Ammonia RPA relevant info
 addWorksheet(wb,"Ammonia RPA")
 writeData(wb,sheet="Ammonia RPA",startRow=1,x="Summary statistics for Ammonia RPA")
-writeData(wb,sheet="Ammonia RPA",startRow=2,x="winter=November - April, summer= May - October")
-writeData(wb,sheet="Ammonia RPA",startRow=3, x="average, 10th percentile, and 90th percentile are calculated using n, not est.samp")
+writeData(wb,sheet="Ammonia RPA",startRow=2,x=" winter=November - April, summer= May - October")
+writeData(wb,sheet="Ammonia RPA",startRow=3, x="90th percentiles are calculated using n, not est.samp")
 writeData(wb,sheet="Ammonia RPA",startRow=4, x="Dates are in Month/Day/Year format")
 writeData(wb,sheet="Ammonia RPA",x="Seasonal",startCol=1, startRow=6)
-writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=21,startRow=6)
+writeData(wb,sheet="Ammonia RPA",x="Year Round",startCol=18,startRow=6)
 writeData(wb,sheet="Ammonia RPA",x=ammrp,startCol=1, startRow=7)
-writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=21,startRow=7)
+writeData(wb,sheet="Ammonia RPA",x=ammtot,startCol=18,startRow=7)
 
 #sheet of all summary 
 addWorksheet(wb,"Parameter Summary")
@@ -330,7 +338,7 @@ writeData(wb,sheet="ICIS Data",startRow=6,x=data1)
 
 #sheet for temperature and flow
 addWorksheet(wb,"Flow+Temp")
-writeData(wb,sheet="Flow+Temp",startRow=1,x="Flow and Temperature data from ICIS")
+writeData(wb,sheet="Flow+Temp",startRow=1,x="Flow and Temperature data from ICIS for TORCH analysis")
 writeData(wb,sheet="Flow+Temp",startRow=2,x="Reported flow and temperature for each month based on start date")
 writeData(wb,sheet="Flow+Temp",startRow=2,x="Scales on plots may vary from plot to plot")
 writeData(wb,sheet="Flow+Temp",startRow=6,x="Maximum")
